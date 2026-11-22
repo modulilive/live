@@ -105,10 +105,15 @@
       const el = document.getElementById("list");
       if (!list.length) { el.innerHTML = '<div class="empty-dash">Nessun modulo ancora. Crea il primo con “+ Nuovo modulo”.</div>'; return; }
       el.innerHTML = list.map((f) => '<div class="fcard"><div class="fcard-main" data-open="' + f.id + '"><div class="fcard-title">' + esc(f.title) + '</div><div class="muted small">' +
-        (f.mode === "guided" ? "Guidata" : "Libera") + " · codice <b>" + esc(f.code) + "</b> · " + f.done + " risposte" + (f.open ? "" : " · <span class=\"warn\">chiuso</span>") +
-        " · modificato " + new Date(f.updated_at).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" }) + '</div></div><div class="fcard-act">' +
-        '<a class="pbtn" href="present.html?id=' + f.id + '" target="_blank">Presenta</a><button class="pbtn" data-link="' + esc(f.code) + '">Link</button>' +
-        '<button class="pbtn" data-dup="' + f.id + '">Duplica</button><button class="pbtn danger" data-del="' + f.id + '" data-title="' + esc(f.title) + '">Elimina</button></div></div>').join("");
+        f.done + (f.done === 1 ? " risposta" : " risposte") + ", codice " + esc(f.code) + (f.open ? "" : ', <span class="warn">chiuso</span>') +
+        ", modificato il " + new Date(f.updated_at).toLocaleString("it-IT", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + '</div></div><div class="fcard-act">' +
+        '<a class="pbtn" href="present.html?id=' + f.id + '" target="_blank">Presenta</a><div class="more"><button class="icon more-btn" aria-label="Altre azioni">•••</button><div class="menu hidden">' +
+        '<button data-link="' + esc(f.code) + '">Copia il link</button><button data-dup="' + f.id + '">Duplica</button><button class="danger" data-del="' + f.id + '" data-title="' + esc(f.title) + '">Elimina</button></div></div></div></div>').join("");
+      el.querySelectorAll(".more-btn").forEach((b) => (b.onclick = (e) => {
+        e.stopPropagation(); const m = b.nextElementSibling;
+        document.querySelectorAll(".more .menu").forEach((x) => x !== m && x.classList.add("hidden")); m.classList.toggle("hidden");
+      }));
+      document.addEventListener("click", () => document.querySelectorAll(".more .menu").forEach((x) => x.classList.add("hidden")));
       el.querySelectorAll("[data-open]").forEach((b) => (b.onclick = () => (location.hash = "#/f/" + b.dataset.open)));
       el.querySelectorAll("[data-link]").forEach((b) => (b.onclick = () => copy(A.participantUrl(b.dataset.link))));
       el.querySelectorAll("[data-dup]").forEach((b) => (b.onclick = async () => {
@@ -148,8 +153,8 @@
 
   function renderShell() {
     app.innerHTML = '<div class="topbar"><a class="lnk" href="#/">← Moduli</a><b class="tb-title" id="tbTitle">' + esc(form.title) + '</b><span id="saveState" class="save ok">Salvato ✓</span><span class="sp"></span>' +
-      '<a class="pbtn" target="_blank" href="' + esc(A.participantUrl(form.code)) + '">Anteprima</a>' +
-      '<a class="pbtn" target="_blank" href="present.html?id=' + form.id + '">Presenta</a><button class="pbtn primary" id="share">Condividi</button></div>' +
+      '<a class="lnk" target="_blank" href="' + esc(A.participantUrl(form.code)) + '">Anteprima</a>' +
+      '<a class="lnk" target="_blank" href="present.html?id=' + form.id + '">Presenta</a><button class="pbtn primary" id="share">Condividi</button></div>' +
       '<div class="tabs"><a href="#/f/' + form.id + '/q" class="' + (tab === "q" ? "on" : "") + '">Domande</a><a href="#/f/' + form.id + '/r" class="' + (tab === "r" ? "on" : "") + '">Risposte</a>' +
       '<a href="#/f/' + form.id + '/s" class="' + (tab === "s" ? "on" : "") + '">Impostazioni</a></div><div id="tab" class="editor"></div>';
     setSave(saveState);

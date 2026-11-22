@@ -12,12 +12,23 @@
   const fmt = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
   const empty = (t) => '<div class="r-empty">' + esc(t || "In attesa delle prime risposte…") + "</div>";
 
-  function bars(items, total) {
-    const max = Math.max(1, ...items.map((i) => i.n));
-    return '<div class="r-bars">' + items.map((i) =>
+  function bars(items, total, opts) {
+    opts = opts || {};
+    let list = items;
+    let hiddenZero = 0;
+    // con tante opzioni (es. le regioni) mostra solo quelle scelte, in ordine
+    if (items.length > 8) {
+      list = items.filter((i) => i.n > 0).sort((a, b) => b.n - a.n);
+      hiddenZero = items.length - list.length;
+    }
+    const max = Math.max(1, ...list.map((i) => i.n));
+    return '<div class="r-bars">' + list.map((i) =>
       '<div class="r-bar">' + (i.thumb ? '<div class="r-bar-th">' + i.thumb + "</div>" : "") +
-      '<div class="r-bar-mid"><div class="r-bar-lab">' + esc(i.label) + '</div><div class="r-track"><div class="r-fill" style="width:' + (i.n / max) * 100 + '%"></div></div></div>' +
-      '<div class="r-bar-n">' + i.n + (total != null ? " <small>" + pct(i.n, total) + "%</small>" : "") + "</div></div>").join("") + "</div>";
+      '<div class="r-bar-mid"><div class="r-bar-top"><span class="r-bar-lab">' + esc(i.label) + '</span><span class="r-bar-n">' +
+      (total != null ? pct(i.n, total) + "%" : i.n) + (total != null ? '<small>' + i.n + "</small>" : "") + "</span></div>" +
+      '<div class="r-track"><div class="r-fill" style="width:' + (i.n / max) * 100 + '%"></div></div></div></div>').join("") +
+      (hiddenZero && list.length ? '<p class="r-more">Altre ' + hiddenZero + " opzioni senza risposte</p>" : "") +
+      (!list.length ? empty() : "") + "</div>";
   }
 
   function choice(q, rows) {
@@ -26,12 +37,11 @@
     if (!rows.length) return empty();
     const hasImg = (q.options || []).some((o) => o.image);
     if (hasImg) {
-      const max = Math.max(1, ...q.options.map((o) => c[o.id] || 0));
       return '<div class="r-imgs">' + q.options.map((o) => {
         const n = c[o.id] || 0;
         return '<div class="r-imgcard">' + (o.image ? '<img src="' + esc(o.image) + '" alt="">' : '<div class="r-imgph">' + esc(o.emoji || "") + "</div>") +
-          '<div class="r-imgcap">' + esc(optLabel(o)) + '</div><div class="r-track"><div class="r-fill" style="width:' + (n / max) * 100 + '%"></div></div>' +
-          '<div class="r-bar-n">' + n + " <small>" + pct(n, rows.length) + "%</small></div></div>";
+          '<div class="r-bar-top"><span class="r-imgcap">' + esc(o.label) + '</span><span class="r-bar-n">' + pct(n, rows.length) + "%<small>" + n + "</small></span></div>" +
+          '<div class="r-track"><div class="r-fill" style="width:' + pct(n, rows.length) + '%"></div></div></div>';
       }).join("") + "</div>";
     }
     return bars(q.options.map((o) => ({ label: o.label, thumb: thumb(o), n: c[o.id] || 0 })), rows.length);
@@ -77,10 +87,10 @@
     if (!n) return empty();
     const max = Math.max(1, ...steps.map((s) => c[s.value] || 0));
     const lo = steps.length ? steps[0].value : 0, hi = steps.length ? steps[steps.length - 1].value : 5;
-    return '<div class="r-scale-wrap"><div class="r-avg">Media <b>' + fmt(sum / n) + "</b> <small>(da " + lo + " a " + hi + ", " + n + " risposte)</small></div>" +
+    return '<div class="r-scale-wrap"><div class="r-avg"><b>' + fmt(sum / n) + "</b><span>media, su una scala da " + lo + " a " + hi + "</span></div>" +
       '<div class="r-scale" style="grid-template-columns:repeat(' + steps.length + ',1fr)">' + steps.map((s) => {
         const k = c[s.value] || 0;
-        return '<div class="r-col"><div class="r-col-n">' + k + '</div><div class="r-stick" style="height:' + Math.max(2, (k / max) * 100) + '%"></div>' +
+        return '<div class="r-col"><div class="r-col-bar"><div class="r-col-n">' + k + '</div><div class="r-stick' + (k ? "" : " zero") + '" style="height:calc(' + (k / max).toFixed(3) + ' * (100% - 34px))"></div></div>' +
           '<div class="r-col-em">' + esc(s.emoji || String(s.value)) + '</div><div class="r-col-lab">' + (s.emoji ? "<b>" + s.value + "</b> " : "") + esc(s.label || "") + "</div></div>";
       }).join("") + "</div></div>";
   }
@@ -94,7 +104,7 @@
       const c = {}; let sum = 0, n = 0;
       rows.forEach((r) => { const v = r.v && r.v[row.id]; if (v != null && v !== "") { c[v] = (c[v] || 0) + 1; sum += Number(v); n++; } });
       const segs = steps.map((s, i) => { const k = c[s.value] || 0; return k ? '<div class="r-seg" style="flex:' + k + ";background:" + shade(i, steps.length) + '" title="' + k + '">' + (pct(k, n) >= 8 ? pct(k, n) + "%" : "") + "</div>" : ""; }).join("");
-      return '<div class="r-lrow"><div class="r-lrow-lab">' + esc(row.label) + (n ? ' <small>media ' + fmt(sum / n) + " · " + n + "</small>" : "") + '</div><div class="r-stack">' + (segs || '<div class="r-seg r-seg-empty"></div>') + "</div></div>";
+      return '<div class="r-lrow"><div class="r-lrow-lab">' + esc(row.label) + (n ? ' <small>media ' + fmt(sum / n) + "</small>" : "") + '</div><div class="r-stack">' + (segs || '<div class="r-seg r-seg-empty"></div>') + "</div></div>";
     }).join("") + "</div>";
   }
   function shade(i, n) {
@@ -110,8 +120,8 @@
     const worst = opts.length;
     return '<div class="r-bars">' + list.map((x, i) =>
       '<div class="r-bar"><div class="r-rank">' + (i + 1) + "°</div>" + (thumb(x.o) ? '<div class="r-bar-th">' + thumb(x.o) + "</div>" : "") +
-      '<div class="r-bar-mid"><div class="r-bar-lab">' + esc(x.o.label) + '</div><div class="r-track"><div class="r-fill" style="width:' +
-      (isFinite(x.avg) ? ((worst - x.avg + 1) / worst) * 100 : 0) + '%"></div></div></div><div class="r-bar-n"><small>posizione media</small> ' + (isFinite(x.avg) ? fmt(x.avg) : "–") + "</div></div>").join("") + "</div>";
+      '<div class="r-bar-mid"><div class="r-bar-top"><span class="r-bar-lab">' + esc(x.o.label) + '</span><span class="r-bar-n">' + (isFinite(x.avg) ? fmt(x.avg) : "–") + '<small>posizione media</small></span></div><div class="r-track"><div class="r-fill" style="width:' +
+      (isFinite(x.avg) ? ((worst - x.avg + 1) / worst) * 100 : 0) + '%"></div></div></div></div>').join("") + "</div>";
   }
 
   function numberRes(q, rows) {
@@ -119,7 +129,7 @@
     if (!vals.length) return empty();
     const sum = vals.reduce((a, b) => a + b, 0), c = {};
     vals.forEach((v) => (c[v] = (c[v] || 0) + 1));
-    return '<div class="r-avg">Media <b>' + fmt(sum / vals.length) + "</b> <small>min " + Math.min(...vals) + " · max " + Math.max(...vals) + " · " + vals.length + " risposte</small></div>" +
+    return '<div class="r-avg"><b>' + fmt(sum / vals.length) + "</b><span>media (minimo " + Math.min(...vals) + ", massimo " + Math.max(...vals) + ")</span></div>" +
       '<div class="r-chips">' + Object.keys(c).map(Number).sort((a, b) => a - b).map((v) => "<span>" + v + (c[v] > 1 ? " ×" + c[v] : "") + "</span>").join("") + "</div>";
   }
 
@@ -136,8 +146,8 @@
     const list = (items || []).filter((i) => !i.hidden).sort((a, b) => (a.answered - b.answered) || (b.votes - a.votes) || (a.t < b.t ? -1 : 1));
     if (!list.length) return empty("Le domande del pubblico appariranno qui…");
     return '<div class="r-qa">' + list.map((i) =>
-      '<div class="r-qa-item' + (i.answered ? " done" : "") + '"><div class="r-qa-votes">▲ ' + i.votes + '</div><div class="r-qa-body">' + esc(i.body) + "</div>" +
-      (opts.onQa ? '<div class="r-qa-act"><button data-qa="answered" data-id="' + i.id + '" title="Segna come risposta">' + (i.answered ? "↺" : "✓") + '</button><button data-qa="hide" data-id="' + i.id + '" title="Nascondi">✕</button></div>' : "") +
+      '<div class="r-qa-item' + (i.answered ? " done" : "") + '"><div class="r-qa-votes"><b>' + i.votes + '</b><small>' + (i.votes == 1 ? "voto" : "voti") + '</small></div><div class="r-qa-body">' + esc(i.body) + "</div>" +
+      (opts.onQa ? '<div class="r-qa-act"><button data-qa="answered" data-id="' + i.id + '" title="Segna come risposta">' + (i.answered ? "Riapri" : "Fatta") + '</button><button data-qa="hide" data-id="' + i.id + '" title="Nascondi">Nascondi</button></div>' : "") +
       "</div>").join("") + "</div>";
   }
 

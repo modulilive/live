@@ -15,9 +15,15 @@
   let qaTimers = [];
 
   // ---------- schermate semplici ----------
+  const GLYPH = {
+    "💙": '<div class="done-mark"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>',
+    "⏳": '<div class="pulse"></div>',
+    "🔒": '<div class="glyph"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></div>',
+    "📶": '<div class="pulse"></div>',
+  };
   function screen(big, title, text, extra) {
     clearQa();
-    app.innerHTML = header(true) + '<div class="center-msg"><div class="big">' + big + "</div><h2>" + esc(title) + "</h2>" +
+    app.innerHTML = header(true) + '<div class="center-msg">' + (GLYPH[big] || "") + "<h2>" + esc(title) + "</h2>" +
       (text ? "<p>" + esc(text) + "</p>" : "") + (extra || "") + "</div>";
   }
   function header(small) {
@@ -30,8 +36,8 @@
 
   function joinScreen(err) {
     document.title = "Partecipa";
-    app.innerHTML = '<div class="center-msg join"><div class="big">👋</div><h2>Inserisci il codice</h2>' +
-      '<input id="code" class="inp code-inp" maxlength="12" autocomplete="off" autocapitalize="none" placeholder="es. k7m2qp">' +
+    app.innerHTML = '<div class="center-msg join"><h2>Inserisci il codice</h2><p>Lo trovi sullo schermo di chi presenta.</p>' +
+      '<input id="code" class="inp code-inp" maxlength="12" autocomplete="off" autocapitalize="none" placeholder="k7m2qp" aria-label="Codice">' +
       '<button class="btn" id="go">Entra</button>' + (err ? '<div class="status err">' + esc(err) + "</div>" : "") + "</div>";
     const go = () => { const c = document.getElementById("code").value.trim(); if (c) location.search = "?f=" + encodeURIComponent(c.toLowerCase()); };
     document.getElementById("go").onclick = go;
@@ -205,7 +211,7 @@
     shownSection = active;
     if (!state.open) return screen("🔒", "Il modulo è chiuso", "Al momento non accetta risposte.");
     const s = sections.find((x) => x.id === active);
-    if (!s) return screen("⏳", "Tieni aperta questa pagina", "Le domande appariranno qui quando l’organizzatrice le apre.");
+    if (!s) return screen("⏳", "Tieni aperta questa pagina", "Le domande compariranno qui da sole.");
     clearQa();
     const onlyTap = (s.questions || []).length === 1 && ["choice", "scale"].includes(s.questions[0].type);
     const hasInputs = (s.questions || []).some((q) => q.type !== "qa");
@@ -322,7 +328,7 @@
       body.innerHTML = '<div class="' + (compact ? "scale-grid" : "opts") + '"' + (compact ? ' style="grid-template-columns:repeat(' + Math.min(steps.length, 6) + ',1fr)"' : "") + ">" +
         steps.map((s) => '<button type="button" class="opt' + (compact ? " sq" : "") + (v === s.value ? " sel" : "") + '" data-v="' + s.value + '"' + (closed ? " disabled" : "") + ">" +
           (compact ? '<span class="em">' + esc(s.emoji || "") + '</span><span class="num">' + s.value + "</span>"
-                   : '<span class="em">' + esc(s.emoji || "") + '</span><span class="num">' + s.value + "</span><span>" + esc(s.label || "") + "</span>") + "</button>").join("") + "</div>" +
+                   : '<span class="opt-row"><span class="mark"></span>' + (s.emoji ? '<span class="em">' + esc(s.emoji) + "</span>" : "") + '<span class="num">' + s.value + "</span><span>" + esc(s.label || "") + "</span></span>") + "</button>").join("") + "</div>" +
         (compact && (steps[0] || {}).label ? '<div class="scale-ends"><span>' + esc(steps[0].label) + "</span><span>" + esc(steps[steps.length - 1].label || "") + "</span></div>" : "");
       body.querySelectorAll(".opt").forEach((b) => (b.onclick = () => {
         body.querySelectorAll(".opt").forEach((x) => x.classList.toggle("sel", x === b));
